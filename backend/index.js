@@ -23,20 +23,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 
+
 app.use(cors({
-  origin: 'http://localhost:5173',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type'],
+  origin: true,
   credentials: true
 }));
-
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "http://localhost:5173");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type");
-  next();
-});
-
 
 
 app.use(express.json());
@@ -116,49 +107,6 @@ app.get('/api/properties', async (req, res) => { // <-- Added /api prefix
 });
 
 
-// GET /api/properties - get all properties with optional filters and sorting
-// This route fetches a list of properties, allowing filtering by location, price range, and sorting.
-app.get('/api/properties', async (req, res) => {
-  try {
-    const { location, minPrice, maxPrice, sort } = req.query;
-
-    // Build a query object dynamically based on provided filters
-    const query = {};
-    if (location) {
-      // Case-insensitive search for location using regex
-      query.location = { $regex: location, $options: 'i' };
-    }
-    if (minPrice) {
-      // Add greater than or equal to filter for price
-      query.pricePerNight = { ...query.pricePerNight, $gte: Number(minPrice) };
-    }
-    if (maxPrice) {
-      // Add less than or equal to filter for price
-      query.pricePerNight = { ...query.pricePerNight, $lte: Number(maxPrice) };
-    }
-
-    // Start building the Mongoose query
-    let propertiesQuery = Property.find(query);
-
-    // Apply sorting based on the 'sort' query parameter
-    if (sort === 'price_asc') {
-      propertiesQuery = propertiesQuery.sort({ pricePerNight: 1 }); // Ascending order
-    } else if (sort === 'price_desc') {
-      propertiesQuery = propertiesQuery.sort({ pricePerNight: -1 }); // Descending order
-    }
-
-    // Execute the query to get the properties from the database
-    const properties = await propertiesQuery.exec();
-
-    // Send the fetched properties as a JSON response
-    res.json(properties);
-  } catch (error) {
-    // Log any errors that occur during the process
-    console.error('[BACKEND LOG] GET /api/properties error:', error);
-    // Send a 500 Internal Server Error response to the client
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 // GET /api/properties/:id - get full details of a single property by ID
 // This route fetches the detailed information for a single property using its unique ID.
@@ -192,11 +140,45 @@ app.get('/api/properties/:id', async (req, res) => {
   }
 });
 
+// POST /api/properties - create new property
+app.post('/api/properties', upload.array('images', 5), async (req, res) => {
+  try {
+    const {
+      name,
+      pricePerNight,
+      location,
+      locationDescription,
+      propertyDescription,
+      contactNumber
+    } = req.body;
+
+    const imagePaths = req.files.map(file => `/uploads/${file.filename}`);
+
+    const newProperty = new Property({
+      name,
+      pricePerNight,
+      location,
+      locationDescription,
+      propertyDescription,
+      contactNumber,
+      images: imagePaths
+    });
+
+    await newProperty.save();
+
+    res.status(201).json(newProperty);
+
+  } catch (error) {
+    console.error('POST /api/properties error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 
 
 
 // PUT /properties/:id - update property by ID
-app.put('/properties/:id', async (req, res) => {
+app.put('/api/properties/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
@@ -219,7 +201,7 @@ app.put('/properties/:id', async (req, res) => {
 
 
 // DELETE /properties/:id - delete property by ID
-app.delete('/properties/:id', async (req, res) => {
+app.delete('/api/properties/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const deletedProperty = await Property.findByIdAndDelete(id);

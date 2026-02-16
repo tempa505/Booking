@@ -176,7 +176,7 @@ const AddPropertyForm = ({ setProperties }) => {
           <input
             type="tel"
             name="contactNumber"
-            placeholder="Ex: +97517576579"
+            placeholder="Ex: +97517575579"
             value={formData.contactNumber}
             onChange={handleChange}
             className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
